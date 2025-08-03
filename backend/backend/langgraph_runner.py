@@ -1,12 +1,14 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain.chat_models import ChatOpenAI
+from langchain_groq import ChatGroq
+# from langchain.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langgraph.graph import StateGraph, END
-from .utils import document_loader, chunker, retriever,query_rephraser
+from .utils import document_loader, chunker, retriever, query_rephraser
 import os
 from dotenv import load_dotenv
+from langchain_huggingface import HuggingFaceEmbeddings
 from typing import TypedDict, List, Union
 
 class GraphState(TypedDict):
@@ -17,9 +19,20 @@ class GraphState(TypedDict):
     answers: List[str]
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-llm = ChatOpenAI(temperature=0, model="gpt-4o", openai_api_key=api_key)
-embedding_model = OpenAIEmbeddings(openai_api_key=api_key)
+# api_key = os.getenv("OPENAI_API_KEY")
+# llm = ChatOpenAI(temperature=0, model="gpt-4o", openai_api_key=api_key)
+api_key = os.getenv("GROQ_API_KEY")
+llm = ChatGroq(
+        temperature=0,
+        model="llama3-70b-8192",  # You can also try "mixtral-8x7b-32768"
+        groq_api_key=api_key
+    )
+# embedding_model = OpenAIEmbeddings(openai_api_key=api_key)
+embedding_model = HuggingFaceEmbeddings(
+    model_name="intfloat/e5-large-v2",
+    model_kwargs={"device": "cpu"},
+    encode_kwargs={"normalize_embeddings": True}
+)
 
 # Graph states
 def question_node(state):
@@ -44,11 +57,8 @@ def retrieve_answer_node(state):
     answers = []
 
     for q in questions:
-        docs = vectorstore.similarity_search(q, k=3)
-        context = "\n".join([doc.page_content for doc in docs])
-        prompt = f"""Answer the question based on context:\n\nContext:\n{context}\n\nQuestion: {q}"""
-        response = llm.invoke(prompt)
-        answers.append(response.content)
+        answer = retriever.answer_question_with_retrieval(llm, vectorstore, q, k=3)
+        answers.append(answer)
 
     return {"answers": answers}
 

@@ -1,11 +1,18 @@
-from langchain.chat_models import ChatOpenAI
+from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 
 def query_rephraser_fn(query:str)->str:
     load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    llm = ChatOpenAI(temperature=0, model="gpt-4o", openai_api_key=api_key)
+    # api_key = os.getenv("OPENAI_API_KEY")
+    # llm = ChatOpenAI(temperature=0, model="gpt-4o", openai_api_key=api_key)
+
+    api_key = os.getenv("GROQ_API_KEY")
+    llm = ChatGroq(
+        temperature=0,
+        model="llama3-70b-8192", 
+        groq_api_key=api_key
+    )
     
     prompt = f"""
 You are a helpful assistant that rephrases shorthand or fragmented user queries into clear, complete English questions to check **whether a specific medical case is covered under an insurance policy**.
@@ -28,4 +35,4 @@ Now rephrase this input:
 {query}
 """
     rephrased_query = llm.invoke(prompt)
-    return rephrased_query
+    return rephrased_query.content
